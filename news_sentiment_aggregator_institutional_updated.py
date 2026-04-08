@@ -462,6 +462,52 @@ class SentimentEngine:
 
 
 class Scraper:
+    def _build_news_sections_html(self, df: pd.DataFrame) -> str:
+        grouped = self._group_news_sections(df)
+        blocks = []
+    
+        section_meta = [
+            ("US", "us-news", "U.S. News"),
+            ("UK", "uk-news", "U.K. News"),
+            ("Global", "global-news", "Global News"),
+        ]
+    
+        for key, section_id, label in section_meta:
+            part = grouped.get(key, pd.DataFrame())
+            avg_sens = float(part["sensitivity_analysis_score"].mean()) if not part.empty else 0.0
+            avg_mkt = float(part["market_sentiment_score"].mean()) if not part.empty else 0.0
+            blocks.append(
+                f"""
+                <section class="card" id="{section_id}">
+                  <div class="section-header">
+                    <h2>{html.escape(label)}</h2>
+                    <span class="section-subtitle">items={len(part)} | avg_market_sentiment={avg_mkt:.3f} | avg_sensitivity={avg_sens:.2f}</span>
+                  </div>
+                  <div class="subsection">
+                    <h3>Subject summary</h3>
+                    {self._render_country_subject_summary(part)}
+                  </div>
+                  <div class="subsection">
+                    <h3>Top items</h3>
+                    {self._render_item_list(part)}
+                  </div>
+                </section>
+                """
+            )
+        return "".join(blocks)
+
+
+    def _build_reddit_sections_html(self, df: pd.DataFrame) -> str:
+        return f"""
+        <section class="card" id="reddit-country">
+          <div class="section-header">
+            <h2>Reddit by Country</h2>
+            <span class="section-subtitle">Country-level Reddit news and sentiment</span>
+          </div>
+          {self._render_reddit_by_country(df)}
+        </section>
+        """
+    
     def __init__(self, output_root: Path, sources: Optional[List[FeedSource]] = None):
         self.output_root = output_root
         for p in ["logs", "state", "Report", "Data"]:
@@ -820,16 +866,23 @@ class Scraper:
     def _render_reddit_by_country(self, df: pd.DataFrame) -> str:
         reddit_df = df[df["source_type"] == "reddit"].copy()
         if reddit_df.empty:
-            return "<h2>Reddit Dashboard</h2><p>No Reddit items in this cycle.</p>"
+            return "<p>No Reddit items in this cycle.</p>"
+    
         countries = sorted(reddit_df["origin_country"].fillna("Global/Unknown").unique().tolist())
-        blocks = ["<h2>Reddit Dashboard by Country</h2>"]
+        blocks = []
         for country in countries:
             part = reddit_df[reddit_df["origin_country"] == country].copy()
             avg_sens = float(part["sensitivity_analysis_score"].mean()) if not part.empty else 0.0
             avg_mkt = float(part["market_sentiment_score"].mean()) if not part.empty else 0.0
-            blocks.append(f"<h3>{html.escape(country)} | items={len(part)} | avg_market_sentiment={avg_mkt:.3f} | avg_sensitivity={avg_sens:.2f}</h3>")
-            blocks.append(self._render_country_subject_summary(part))
-            blocks.append(self._render_item_list(part))
+            blocks.append(
+                f"""
+                <div class="subsection">
+                  <h3>{html.escape(country)} | items={len(part)} | avg_market_sentiment={avg_mkt:.3f} | avg_sensitivity={avg_sens:.2f}</h3>
+                  {self._render_country_subject_summary(part)}
+                  {self._render_item_list(part)}
+                </div>
+                """
+            )
         return "".join(blocks)
 
     def _build_prediction_html(self, block: Dict[str, Any]) -> str:
@@ -851,14 +904,14 @@ class Scraper:
             sector_score_str = f"{sector_score:.3f}" if isinstance(sector_score, (int, float)) else "N/A"
             direction = html.escape(str(sector.get("direction", "")))
             direction_class = "badge-positive" if direction == "outperform" else "badge-negative" if direction == "underperform" else "badge-neutral"
+            sector_sensitivity = sector.get("sensitivity_analysis_score")
+            sensitivity_str = f"{sector_sensitivity:.3f}" if isinstance(sector_sensitivity, (int, float)) else "N/A"
     
             for firm in sector.get("firms", []):
                 ticker = html.escape(str(firm.get("ticker", "")))
                 firm_name = html.escape(str(firm.get("firm", "")))
-                price_now = firm.get("price_now")
-                price_now_str = f"{price_now:.2f}" if isinstance(price_now, (int, float)) else "N/A"
-                sensitivity = abs(float(sector_score)) if isinstance(sector_score, (int, float)) else None
-                sensitivity_str = f"{sensitivity:.3f}" if sensitivity is not None else "N/A"
+                price_at_cycle_end = firm.get("price_at_cycle_end")
+                price_str = f"{price_at_cycle_end:.2f}" if isinstance(price_at_cycle_end, (int, float)) else "N/A"
     
                 rows.append(
                     f"""
@@ -869,7 +922,7 @@ class Scraper:
                       <td><span class="badge {direction_class}">{direction}</span></td>
                       <td class="num">{sector_score_str}</td>
                       <td class="num">{sensitivity_str}</td>
-                      <td class="num">{price_now_str}</td>
+                      <td class="num">{price_str}</td>
                     </tr>
                     """
                 )
@@ -1034,7 +1087,7 @@ class Scraper:
         </section>
         """
 
-    def _build_hourly_dashboard_html(self, stub: str, summary: Dict[str, Any], prediction_block: Dict[str, Any], transparency_rows: List[Dict[str, Any]]) -> str:
+    def _build_hourly_dashboard_html(self, stub: str, summary: Dict[str, Any], prediction_block: Dict[str, Any], transparency_rows: List[Dict[str, Any]], df: pd.DataFrame) -> str:
         pred = self._build_prediction_html(prediction_block)
         transparency = self._build_transparency_html(transparency_rows)
     
@@ -1368,7 +1421,7 @@ class Scraper:
         </html>
         """
 
-    def _build_24h_dashboard_html(self, stub: str, summary: Dict[str, Any], prediction_block: Dict[str, Any], transparency_rows: List[Dict[str, Any]]) -> str:
+    def _build_24h_dashboard_html(self, stub: str, summary: Dict[str, Any], prediction_block: Dict[str, Any], transparency_rows: List[Dict[str, Any]], df: pd.DataFrame) -> str:
         pred = self._build_prediction_html(prediction_block)
         transparency = self._build_transparency_html(transparency_rows)
     
@@ -1711,15 +1764,21 @@ class Scraper:
     def _save_hourly_report(self, df: pd.DataFrame, summary: Dict[str, Any], prediction_block: Dict[str, Any], transparency_rows: List[Dict[str, Any]]) -> None:
         stub = f"Report_{self.active_end.strftime('%Y-%m-%d')}_{self.active_end.strftime('%H')}"
         reports, articles = self._day_dirs(self.active_end)
+    
         write_df = df.copy()
         if not write_df.empty:
             write_df["topics"] = write_df["topics"].apply(lambda x: ", ".join(x) if isinstance(x, list) else str(x))
             write_df["coverage_tags"] = write_df["coverage_tags"].apply(lambda x: ", ".join(x) if isinstance(x, list) else str(x))
         write_df.to_csv(articles / f"{stub}.csv", index=False)
+    
+        summary["news_sections_html"] = self._build_news_sections_html(df)
+        summary["reddit_sections_html"] = self._build_reddit_sections_html(df)
+    
         (reports / f"{stub}.html").write_text(
             self._build_hourly_dashboard_html(stub, summary, prediction_block, transparency_rows, df),
             encoding="utf-8",
         )
+    
         report_day_key = (self.active_end - timedelta(hours=1)).astimezone(AMSTERDAM_TZ).strftime("%Y-%m-%d")
         self._store_hourly_manifest(report_day_key, stub)
 
@@ -1790,6 +1849,8 @@ class Scraper:
         }
         prediction_block = self._build_prediction_block(df24, cycle="24h", window_end=window_end)
         summary24["prediction_block"] = prediction_block
+        summary24["news_sections_html"] = self._build_news_sections_html(df24)
+        summary24["reddit_sections_html"] = self._build_reddit_sections_html(df24)
         transparency_rows = (
             df24[["title", "source_type", "final_sentiment_label", "market_sentiment_label", "sensitivity_analysis_score", "sentiment_model_used", "sentiment_model_note"]]
             .fillna("")
