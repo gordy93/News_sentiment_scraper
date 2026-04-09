@@ -21,6 +21,7 @@ import html
 import json
 import logging
 import math
+import os
 import re
 import sys
 import time
@@ -86,6 +87,24 @@ REDDIT_SOURCES = [
     {"publisher": "Reddit", "country": "Global", "region": "Global", "feed_name": "r/technology", "subreddit": "technology", "feed_url": "https://www.reddit.com/r/technology/new/.rss", "source_type": "reddit", "priority": "tier2", "community_type": "technology_news", "coverage_tags": ["technology", "ai", "internet", "platforms"]},
     {"publisher": "Reddit", "country": "Global", "region": "Global", "feed_name": "r/energy", "subreddit": "energy", "feed_url": "https://www.reddit.com/r/energy/new/.rss", "source_type": "reddit", "priority": "tier2", "community_type": "sector_news", "coverage_tags": ["energy", "oil", "gas", "utilities", "transition"]},
     {"publisher": "Reddit", "country": "Global", "region": "Global", "feed_name": "r/geopolitics", "subreddit": "geopolitics", "feed_url": "https://www.reddit.com/r/geopolitics/new/.rss", "source_type": "reddit", "priority": "tier2", "community_type": "geopolitics", "coverage_tags": ["geopolitics", "security", "war", "diplomacy"]},
+]
+
+BLUESKY_SOURCES = [
+    {"publisher": "Bluesky", "country": "US", "region": "North America", "feed_name": "@bloomberg.com", "subreddit": "bloomberg.com", "feed_url": "https://bsky.app/profile/bloomberg.com/rss", "source_type": "bluesky", "priority": "tier1", "community_type": "financial_media", "coverage_tags": ["markets", "macro", "companies"]},
+    {"publisher": "Bluesky", "country": "US", "region": "North America", "feed_name": "@reuters.com", "subreddit": "reuters.com", "feed_url": "https://bsky.app/profile/reuters.com/rss", "source_type": "bluesky", "priority": "tier1", "community_type": "wire", "coverage_tags": ["breaking", "markets", "global"]},
+    {"publisher": "Bluesky", "country": "UK", "region": "Europe", "feed_name": "@ft.com", "subreddit": "ft.com", "feed_url": "https://bsky.app/profile/ft.com/rss", "source_type": "bluesky", "priority": "tier1", "community_type": "financial_media", "coverage_tags": ["macro", "markets", "companies"]},
+    {"publisher": "Bluesky", "country": "UK", "region": "Europe", "feed_name": "@bbc.com", "subreddit": "bbc.com", "feed_url": "https://bsky.app/profile/bbc.com/rss", "source_type": "bluesky", "priority": "tier2", "community_type": "broadcaster", "coverage_tags": ["global", "politics", "business"]},
+    {"publisher": "Bluesky", "country": "EU", "region": "Europe", "feed_name": "@politico.eu", "subreddit": "politico.eu", "feed_url": "https://bsky.app/profile/politico.eu/rss", "source_type": "bluesky", "priority": "tier2", "community_type": "policy_media", "coverage_tags": ["europe", "policy", "regulation"]},
+    {"publisher": "Bluesky", "country": "Germany", "region": "Europe", "feed_name": "@dw.com", "subreddit": "dw.com", "feed_url": "https://bsky.app/profile/dw.com/rss", "source_type": "bluesky", "priority": "tier2", "community_type": "broadcaster", "coverage_tags": ["europe", "global", "economy"]},
+    {"publisher": "Bluesky", "country": "France", "region": "Europe", "feed_name": "@france24.com", "subreddit": "france24.com", "feed_url": "https://bsky.app/profile/france24.com/rss", "source_type": "bluesky", "priority": "tier2", "community_type": "broadcaster", "coverage_tags": ["europe", "geopolitics", "business"]},
+    {"publisher": "Bluesky", "country": "Japan", "region": "Asia", "feed_name": "@nikkei.com", "subreddit": "nikkei.com", "feed_url": "https://bsky.app/profile/nikkei.com/rss", "source_type": "bluesky", "priority": "tier1", "community_type": "financial_media", "coverage_tags": ["asia", "macro", "markets"]},
+    {"publisher": "Bluesky", "country": "India", "region": "Asia", "feed_name": "@livemint.com", "subreddit": "livemint.com", "feed_url": "https://bsky.app/profile/livemint.com/rss", "source_type": "bluesky", "priority": "tier2", "community_type": "financial_media", "coverage_tags": ["india", "markets", "policy"]},
+    {"publisher": "Bluesky", "country": "Singapore", "region": "Asia", "feed_name": "@straitstimes.com", "subreddit": "straitstimes.com", "feed_url": "https://bsky.app/profile/straitstimes.com/rss", "source_type": "bluesky", "priority": "tier2", "community_type": "newspaper", "coverage_tags": ["asean", "macro", "geopolitics"]},
+    {"publisher": "Bluesky", "country": "Australia", "region": "Oceania", "feed_name": "@abc.net.au", "subreddit": "abc.net.au", "feed_url": "https://bsky.app/profile/abc.net.au/rss", "source_type": "bluesky", "priority": "tier2", "community_type": "broadcaster", "coverage_tags": ["australia", "commodities", "policy"]},
+    {"publisher": "Bluesky", "country": "Canada", "region": "North America", "feed_name": "@cbc.ca", "subreddit": "cbc.ca", "feed_url": "https://bsky.app/profile/cbc.ca/rss", "source_type": "bluesky", "priority": "tier2", "community_type": "broadcaster", "coverage_tags": ["canada", "energy", "macro"]},
+    {"publisher": "Bluesky", "country": "Middle East", "region": "Middle East", "feed_name": "@aljazeera.com", "subreddit": "aljazeera.com", "feed_url": "https://bsky.app/profile/aljazeera.com/rss", "source_type": "bluesky", "priority": "tier2", "community_type": "broadcaster", "coverage_tags": ["middle_east", "geopolitics", "energy"]},
+    {"publisher": "Bluesky", "country": "Latin America", "region": "Latin America", "feed_name": "@bnamericas.com", "subreddit": "bnamericas.com", "feed_url": "https://bsky.app/profile/bnamericas.com/rss", "source_type": "bluesky", "priority": "tier2", "community_type": "business_media", "coverage_tags": ["latam", "commodities", "infrastructure"]},
+    {"publisher": "Bluesky", "country": "Africa", "region": "Africa", "feed_name": "@allafrica.com", "subreddit": "allafrica.com", "feed_url": "https://bsky.app/profile/allafrica.com/rss", "source_type": "bluesky", "priority": "tier3", "community_type": "regional_media", "coverage_tags": ["africa", "commodities", "policy"]},
 ]
 
 TOPIC_RULES = {
@@ -171,6 +190,40 @@ COUNTRY_PATTERNS = {
     "Middle East": ["israel", "gaza", "iran", "saudi", "qatar", "uae", "middle east"],
 }
 
+BLUESKY_HANDLE_COUNTRY_HINTS = {
+    "bloomberg.com": "US",
+    "reuters.com": "US",
+    "ft.com": "UK",
+    "bbc.com": "UK",
+    "politico.eu": "EU",
+    "dw.com": "Germany",
+    "france24.com": "France",
+    "nikkei.com": "Japan",
+    "livemint.com": "India",
+    "straitstimes.com": "Singapore",
+    "abc.net.au": "Australia",
+    "cbc.ca": "Canada",
+    "aljazeera.com": "Middle East",
+    "bnamericas.com": "Latin America",
+    "allafrica.com": "Africa",
+}
+
+COUNTRY_TZ_HINTS = {
+    "US": "America/New_York",
+    "UK": "Europe/London",
+    "EU": "Europe/Paris",
+    "Germany": "Europe/Berlin",
+    "France": "Europe/Paris",
+    "Japan": "Asia/Tokyo",
+    "India": "Asia/Kolkata",
+    "Singapore": "Asia/Singapore",
+    "Australia": "Australia/Sydney",
+    "Canada": "America/Toronto",
+    "Middle East": "Asia/Qatar",
+    "Latin America": "America/Sao_Paulo",
+    "Africa": "Africa/Johannesburg",
+}
+
 SOURCE_WEIGHTS = {"tier1": 1.0, "tier2": 0.8, "tier3": 0.6}
 
 
@@ -200,7 +253,7 @@ def floor_to_hour(dt: datetime) -> datetime:
     return dt.astimezone(AMSTERDAM_TZ).replace(minute=0, second=0, microsecond=0)
 
 
-def parse_datetime(value: Any) -> Optional[datetime]:
+def parse_datetime(value: Any, source_country: Optional[str] = None, **_: Any) -> Optional[datetime]:
     if not value:
         return None
     try:
@@ -208,7 +261,8 @@ def parse_datetime(value: Any) -> Optional[datetime]:
         if dt is None:
             return None
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=UTC)
+            hint = COUNTRY_TZ_HINTS.get(str(source_country or "").strip(), "UTC")
+            dt = dt.replace(tzinfo=ZoneInfo(hint))
         return dt.astimezone(AMSTERDAM_TZ)
     except Exception:
         return None
@@ -250,12 +304,26 @@ class AmsterdamFormatter(logging.Formatter):
         return dt.strftime(datefmt) if datefmt else dt.isoformat()
 
 
+class ResilientStreamHandler(logging.StreamHandler):
+    def emit(self, record):
+        try:
+            super().emit(record)
+        except OSError:
+            return
+
+    def flush(self):
+        try:
+            super().flush()
+        except OSError:
+            return
+
+
 def build_logger(log_path: Path) -> logging.Logger:
     logger = logging.getLogger("news_sentiment_scraper")
     logger.setLevel(logging.INFO)
     logger.handlers = []
     fmt = AmsterdamFormatter("%(asctime)s | %(levelname)s | %(message)s", "%Y-%m-%d %H:%M:%S %Z")
-    sh = logging.StreamHandler(sys.stdout)
+    sh = ResilientStreamHandler(sys.stdout)
     sh.setFormatter(fmt)
     logger.addHandler(sh)
     fh = logging.FileHandler(log_path, encoding="utf-8")
@@ -357,8 +425,16 @@ class SentimentEngine:
         self.logger = logger
         self.finbert_model = None
         self.social_model = None
+        os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+        os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
+        logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
         try:
             from transformers import pipeline
+            try:
+                from transformers.utils import logging as tf_logging
+                tf_logging.set_verbosity_error()
+            except Exception:
+                pass
             self.finbert_model = pipeline(task="text-classification", model="ProsusAI/finbert", tokenizer="ProsusAI/finbert", truncation=True, max_length=512, device=-1)
             self.logger.info("FinBERT loaded (news/finance path).")
         except Exception as exc:
@@ -412,8 +488,8 @@ class SentimentEngine:
         text = clean_text(text)
         if not text:
             return {"label": "neutral", "confidence": 0.5, "raw": 0.0, "market_raw": 0.0, "market_label": "neutral", "model_used": "none", "model_note": "empty_text"}
-        use_social_model = source_type == "reddit" and self.social_model is not None
-        use_finbert_model = source_type != "reddit" and self.finbert_model is not None
+        use_social_model = source_type in {"reddit", "bluesky"} and self.social_model is not None
+        use_finbert_model = source_type not in {"reddit", "bluesky"} and self.finbert_model is not None
         if use_social_model or use_finbert_model:
             try:
                 pipeline_model = self.social_model if use_social_model else self.finbert_model
@@ -507,6 +583,57 @@ class Scraper:
           {self._render_reddit_by_country(df)}
         </section>
         """
+
+    def _build_bluesky_sections_html(self, df: pd.DataFrame) -> str:
+        bluesky_df = df[df["source_type"] == "bluesky"].copy()
+        overview_html = self._build_bluesky_overview_html(bluesky_df)
+        return f"""
+        <section class="card" id="bluesky-country">
+          <div class="section-header">
+            <h2>Bluesky by Country</h2>
+            <span class="section-subtitle">Institutional social monitor with global country coverage</span>
+          </div>
+          {overview_html}
+          {self._render_bluesky_by_country(df)}
+        </section>
+        """
+
+    def _build_bluesky_overview_html(self, bluesky_df: pd.DataFrame) -> str:
+        if bluesky_df.empty:
+            return '<div class="empty-state">No Bluesky posts in this cycle.</div>'
+        grouped = (
+            bluesky_df.groupby("origin_country")
+            .agg(
+                item_count=("article_id", "count"),
+                avg_market_sentiment=("market_sentiment_score", "mean"),
+                avg_sensitivity=("sensitivity_analysis_score", "mean"),
+            )
+            .reset_index()
+            .sort_values(["item_count", "avg_sensitivity"], ascending=[False, False])
+        )
+        rows = []
+        for _, r in grouped.head(15).iterrows():
+            rows.append(
+                f"<tr><td>{html.escape(str(r['origin_country']))}</td><td>{int(r['item_count'])}</td><td>{float(r['avg_market_sentiment']):.3f}</td><td>{float(r['avg_sensitivity']):.2f}</td></tr>"
+            )
+        total_items = int(len(bluesky_df))
+        covered_countries = int(grouped["origin_country"].nunique())
+        return f"""
+        <div class="subsection">
+          <h3>Global Bluesky coverage snapshot</h3>
+          <p>Total posts: <b>{total_items}</b> | Countries observed: <b>{covered_countries}</b></p>
+          <div class="table-wrap">
+            <table class="styled-table">
+              <thead>
+                <tr><th>Country</th><th>Posts</th><th>Avg market sentiment</th><th>Avg sensitivity</th></tr>
+              </thead>
+              <tbody>
+                {''.join(rows)}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        """
     
     def __init__(self, output_root: Path, sources: Optional[List[FeedSource]] = None):
         self.output_root = output_root
@@ -535,6 +662,64 @@ class Scraper:
     def _in_window(self, dt: Optional[datetime]) -> bool:
         return bool(dt and self.active_start <= dt < self.active_end)
 
+    def _bluesky_actor_from_source(self, source_cfg: Dict[str, Any]) -> str:
+        actor = (source_cfg.get("subreddit") or source_cfg.get("feed_name") or "").strip().lstrip("@")
+        return actor
+
+    @staticmethod
+    def _bluesky_post_url(author_handle: str, uri: str) -> str:
+        # AT URI format: at://did:plc:.../app.bsky.feed.post/<rkey>
+        m = re.search(r"/app\.bsky\.feed\.post/([^/?#]+)$", uri or "")
+        rkey = m.group(1) if m else ""
+        if author_handle and rkey:
+            return f"https://bsky.app/profile/{author_handle}/post/{rkey}"
+        return ""
+
+    def _discover_bluesky_atproto(self, source_cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
+        actor = self._bluesky_actor_from_source(source_cfg)
+        if not actor:
+            return []
+        out: List[Dict[str, Any]] = []
+        try:
+            endpoint = "https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed"
+            resp = self.session.get(endpoint, params={"actor": actor, "limit": 30}, timeout=REQUEST_TIMEOUT)
+            if resp.status_code != 200:
+                return out
+            feed = resp.json().get("feed", [])
+            for row in feed:
+                post = row.get("post", {})
+                author = post.get("author", {}) if isinstance(post, dict) else {}
+                record = post.get("record", {}) if isinstance(post, dict) else {}
+                created_at = parse_datetime(record.get("createdAt"), source_country=source_cfg.get("country"))
+                if not self._in_window(created_at):
+                    continue
+                text = clean_text(record.get("text", ""))
+                author_handle = str(author.get("handle", actor))
+                url = self._bluesky_post_url(author_handle, str(post.get("uri", "")))
+                if not url or url in self.state.seen_urls:
+                    continue
+                out.append({
+                    "source_type": "bluesky",
+                    "publisher": source_cfg["publisher"],
+                    "country": source_cfg["country"],
+                    "region": source_cfg.get("region", ""),
+                    "priority": source_cfg.get("priority", "tier2"),
+                    "publisher_class": source_cfg.get("publisher_class", ""),
+                    "coverage_tags": source_cfg.get("coverage_tags") or [],
+                    "subreddit": source_cfg.get("subreddit", ""),
+                    "community_type": source_cfg.get("community_type", ""),
+                    "feed_name": source_cfg["feed_name"],
+                    "source_feed_url": source_cfg["feed_url"],
+                    "url": url,
+                    "title": text[:220],
+                    "summary": text,
+                    "authors": author_handle,
+                    "published_at": created_at,
+                })
+        except Exception as exc:
+            self.logger.warning("Bluesky ATProto fallback failed (%s): %s", source_cfg.get("feed_name", "unknown"), exc)
+        return out
+
     def _discover(self) -> List[Dict[str, Any]]:
         candidates: List[Dict[str, Any]] = []
         for source in self.sources:
@@ -543,12 +728,16 @@ class Scraper:
             self.source_stats.setdefault(source_name, {"fetched": 0, "accepted": 0, "errors": 0})
             try:
                 parsed = feedparser.parse(source_cfg["feed_url"])
+                accepted_this_source = 0
                 for entry in parsed.entries[:MAX_ARTICLES_PER_FEED]:
                     self.source_stats[source_name]["fetched"] += 1
                     url = normalize_url(getattr(entry, "link", "") or getattr(entry, "id", ""))
                     if not url or url in self.state.seen_urls:
                         continue
-                    published_at = parse_datetime(getattr(entry, "published", None) or getattr(entry, "updated", None) or getattr(entry, "pubDate", None))
+                    published_at = parse_datetime(
+                        getattr(entry, "published", None) or getattr(entry, "updated", None) or getattr(entry, "pubDate", None),
+                        source_country=source_cfg.get("country"),
+                    )
                     if not self._in_window(published_at):
                         continue
                     candidates.append({
@@ -570,9 +759,18 @@ class Scraper:
                         "published_at": published_at,
                     })
                     self.source_stats[source_name]["accepted"] += 1
+                    accepted_this_source += 1
+                if source_cfg.get("source_type") == "bluesky" and accepted_this_source == 0:
+                    fallback_rows = self._discover_bluesky_atproto(source_cfg)
+                    candidates.extend(fallback_rows)
+                    self.source_stats[source_name]["accepted"] += len(fallback_rows)
             except Exception as exc:
                 self.source_stats[source_name]["errors"] += 1
                 self.logger.error("Feed error (%s): %s", source_cfg["feed_name"], exc)
+                if source_cfg.get("source_type") == "bluesky":
+                    fallback_rows = self._discover_bluesky_atproto(source_cfg)
+                    candidates.extend(fallback_rows)
+                    self.source_stats[source_name]["accepted"] += len(fallback_rows)
         candidates.sort(key=lambda x: x.get("published_at") or self.active_start)
         return candidates[:MAX_ITEMS_PER_WINDOW]
 
@@ -580,6 +778,10 @@ class Scraper:
         if item["source_type"] == "reddit":
             item["body"] = item["summary"]
             item["domain"] = domain_from_url(item["url"]) or "reddit.com"
+            return item
+        if item["source_type"] == "bluesky":
+            item["body"] = item["summary"]
+            item["domain"] = domain_from_url(item["url"]) or "bsky.app"
             return item
         body = ""
         try:
@@ -624,6 +826,17 @@ class Scraper:
                 return country
         return "Global/Unknown"
 
+    def _infer_bluesky_country(self, item: Dict[str, Any], text: str) -> str:
+        handle = (item.get("subreddit", "") or item.get("feed_name", "")).lower()
+        for domain_hint, country in BLUESKY_HANDLE_COUNTRY_HINTS.items():
+            if domain_hint in handle:
+                return country
+        lowered = text.lower()
+        for country, patterns in COUNTRY_PATTERNS.items():
+            if any(p in lowered for p in patterns):
+                return country
+        return "Global/Unknown"
+
     def _compute_sensitivity_score(self, market_raw: float, confidence: float, priority: str) -> float:
         return float(np.clip(abs(market_raw) * confidence * SOURCE_WEIGHTS.get(priority, 0.75) * 100.0, 0.0, 100.0))
 
@@ -634,7 +847,12 @@ class Scraper:
         text = " ".join([item["title"], item["summary"], item.get("body", "")])
         topics = self._topics(text, item.get("subreddit", ""))
         sent = self.sentiment.score(text, topics, source_type=item.get("source_type", "news"))
-        origin_country = item["country"] if item["source_type"] == "news" else self._infer_reddit_country(item, text)
+        if item["source_type"] == "news":
+            origin_country = item["country"]
+        elif item["source_type"] == "bluesky":
+            origin_country = self._infer_bluesky_country(item, text)
+        else:
+            origin_country = self._infer_reddit_country(item, text)
         sensitivity = self._compute_sensitivity_score(sent["market_raw"], sent["confidence"], item.get("priority", "tier2"))
         out = {
             **item,
@@ -769,9 +987,21 @@ class Scraper:
         current_tickers: List[str] = []
         for sector, direction, score, sens in chosen:
             names = SECTOR_TICKERS.get(sector, [])[:3]
-            firms = [{"ticker": t, "firm": n, "direction": direction} for t, n in names]
+            stock_reason = f"{sector} sentiment suggests {direction} vs peers in next cycle."
+            stock_reason = " ".join(stock_reason.split()[:25])
+            firms = [{"ticker": t, "firm": n, "direction": direction, "stock_rationale_summary": stock_reason} for t, n in names]
             current_tickers.extend([f["ticker"] for f in firms])
-            sector_rows.append({"sector": sector, "sector_score": score, "direction": direction, "sensitivity_analysis_score": sens, "firms": firms})
+            topic_counts: Dict[str, int] = {}
+            for _, drow in df.iterrows():
+                raw_topics = drow.get("topics", [])
+                if isinstance(raw_topics, str):
+                    raw_topics = [t.strip() for t in raw_topics.split(",") if t.strip()]
+                for topic in raw_topics:
+                    if SECTOR_TOPIC_MAP.get(topic) == sector:
+                        topic_counts[topic] = topic_counts.get(topic, 0) + 1
+            top_topics = [k for k, _ in sorted(topic_counts.items(), key=lambda x: x[1], reverse=True)[:3]]
+            rationale = f"Driven by {', '.join(top_topics)}." if top_topics else "Driven by aggregate cycle sentiment and sensitivity."
+            sector_rows.append({"sector": sector, "sector_score": score, "direction": direction, "sensitivity_analysis_score": sens, "rationale_summary": rationale, "firms": firms})
 
         end_prices = self._fetch_end_cycle_prices(current_tickers, window_end)
         for row in sector_rows:
@@ -811,7 +1041,21 @@ class Scraper:
                     "sector": row["sector"],
                 })
         state_slot["last_prediction"] = {"generated_at": window_end.isoformat(), "firms": flat_current}
-        return {"cycle": cycle, "generated_at": window_end.isoformat(), "sectors": sector_rows, "evaluation": evaluation}
+        top_driver_rows = []
+        if not df.empty:
+            top_df = df.sort_values(["sensitivity_analysis_score", "market_sentiment_score"], ascending=[False, False]).head(5)
+            for _, row in top_df.iterrows():
+                summary = clean_text(str(row.get("summary", row.get("body", ""))))
+                summary = " ".join(summary.split()[:50])
+                top_driver_rows.append({
+                    "title": clean_text(str(row.get("title", ""))),
+                    "source": str(row.get("feed_name", row.get("source_type", ""))),
+                    "url": str(row.get("url", "")),
+                    "summary": summary,
+                    "sentiment": str(row.get("market_sentiment_label", "")),
+                    "sensitivity": float(row.get("sensitivity_analysis_score", 0.0)),
+                })
+        return {"cycle": cycle, "generated_at": window_end.isoformat(), "sectors": sector_rows, "evaluation": evaluation, "top_drivers": top_driver_rows}
 
     def _group_news_sections(self, df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
         if df.empty:
@@ -885,6 +1129,35 @@ class Scraper:
             )
         return "".join(blocks)
 
+    def _render_bluesky_by_country(self, df: pd.DataFrame) -> str:
+        bluesky_df = df[df["source_type"] == "bluesky"].copy()
+        if bluesky_df.empty:
+            return "<p>No Bluesky items in this cycle.</p>"
+
+        countries = sorted(bluesky_df["origin_country"].fillna("Global/Unknown").unique().tolist())
+        blocks = []
+        for country in countries:
+            part = bluesky_df[bluesky_df["origin_country"] == country].copy()
+            avg_sens = float(part["sensitivity_analysis_score"].mean()) if not part.empty else 0.0
+            avg_mkt = float(part["market_sentiment_score"].mean()) if not part.empty else 0.0
+            top_drivers = part.sort_values(["sensitivity_analysis_score", "market_sentiment_score"], ascending=[False, False]).head(3)
+            driver_rows = []
+            for _, r in top_drivers.iterrows():
+                driver_rows.append(
+                    f"<li><b>{html.escape(str(r.get('title', '')))}</b> | sensitivity={float(r.get('sensitivity_analysis_score', 0.0)):.2f} | market={html.escape(str(r.get('market_sentiment_label', '')))}</li>"
+                )
+            blocks.append(
+                f"""
+                <div class="subsection">
+                  <h3>{html.escape(country)} | items={len(part)} | avg_market_sentiment={avg_mkt:.3f} | avg_sensitivity={avg_sens:.2f}</h3>
+                  <div><b>Top country drivers</b><ul>{''.join(driver_rows)}</ul></div>
+                  {self._render_country_subject_summary(part)}
+                  {self._render_item_list(part)}
+                </div>
+                """
+            )
+        return "".join(blocks)
+
     def _build_prediction_html(self, block: Dict[str, Any]) -> str:
         if not block.get("sectors"):
             return """
@@ -898,6 +1171,7 @@ class Scraper:
             """
     
         rows = []
+        rationale_rows = []
         for sector in block.get("sectors", []):
             sector_name = html.escape(str(sector.get("sector", "")))
             sector_score = sector.get("sector_score")
@@ -906,11 +1180,15 @@ class Scraper:
             direction_class = "badge-positive" if direction == "outperform" else "badge-negative" if direction == "underperform" else "badge-neutral"
             sector_sensitivity = sector.get("sensitivity_analysis_score")
             sensitivity_str = f"{sector_sensitivity:.3f}" if isinstance(sector_sensitivity, (int, float)) else "N/A"
+            rationale_rows.append(
+                f"<li><b>{sector_name} ({direction})</b>: {html.escape(str(sector.get('rationale_summary', '')))}</li>"
+            )
     
             for firm in sector.get("firms", []):
                 ticker = html.escape(str(firm.get("ticker", "")))
                 firm_name = html.escape(str(firm.get("firm", "")))
                 price_at_cycle_end = firm.get("price_at_cycle_end")
+                stock_rationale = html.escape(str(firm.get("stock_rationale_summary", "")))
                 price_str = f"{price_at_cycle_end:.2f}" if isinstance(price_at_cycle_end, (int, float)) else "N/A"
     
                 rows.append(
@@ -923,6 +1201,7 @@ class Scraper:
                       <td class="num">{sector_score_str}</td>
                       <td class="num">{sensitivity_str}</td>
                       <td class="num">{price_str}</td>
+                      <td>{stock_rationale}</td>
                     </tr>
                     """
                 )
@@ -1004,6 +1283,7 @@ class Scraper:
                     <th>Sector score</th>
                     <th>Sensitivity</th>
                     <th>End-of-cycle price</th>
+                    <th>Why stock may move</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1012,7 +1292,19 @@ class Scraper:
               </table>
             </div>
           </div>
-    
+
+          <div class="subsection">
+            <h3>Why sectors may under/outperform</h3>
+            <ul>{''.join(rationale_rows)}</ul>
+          </div>
+
+          <div class="subsection">
+            <h3>Top 5 expected price drivers (next cycle)</h3>
+            <ul>
+              {''.join([f"<li><b>{html.escape(str(d.get('title','')))}</b> | source={html.escape(str(d.get('source','')))} | sentiment={html.escape(str(d.get('sentiment','')))} | sensitivity={float(d.get('sensitivity',0.0)):.2f}<br>{html.escape(str(d.get('summary','')))}</li>" for d in block.get('top_drivers', [])])}
+            </ul>
+          </div>
+
           {evaluation_html}
         </section>
         """
@@ -1101,6 +1393,7 @@ class Scraper:
             return html.escape(str(v))
     
         news_sections = summary.get("news_sections_html", "")
+        bluesky_sections = summary.get("bluesky_sections_html", "")
         reddit_sections = summary.get("reddit_sections_html", "")
     
         return f"""
@@ -1379,6 +1672,7 @@ class Scraper:
               <a href="#us-news">U.S. News</a>
               <a href="#uk-news">U.K. News</a>
               <a href="#global-news">Global News</a>
+              <a href="#bluesky-country">Bluesky by Country</a>
               <a href="#reddit-country">Reddit by Country</a>
               <a href="#transparency">Transparency</a>
             </nav>
@@ -1413,6 +1707,7 @@ class Scraper:
             <div class="layout">
               {pred}
               {news_sections}
+              {bluesky_sections}
               {reddit_sections}
               {transparency}
             </div>
@@ -1435,6 +1730,7 @@ class Scraper:
             return html.escape(str(v))
     
         news_sections = summary.get("news_sections_html", "")
+        bluesky_sections = summary.get("bluesky_sections_html", "")
         reddit_sections = summary.get("reddit_sections_html", "")
     
         return f"""
@@ -1713,6 +2009,7 @@ class Scraper:
               <a href="#us-news">U.S. News</a>
               <a href="#uk-news">U.K. News</a>
               <a href="#global-news">Global News</a>
+              <a href="#bluesky-country">Bluesky by Country</a>
               <a href="#reddit-country">Reddit by Country</a>
               <a href="#transparency">Transparency</a>
             </nav>
@@ -1747,6 +2044,7 @@ class Scraper:
             <div class="layout">
               {pred}
               {news_sections}
+              {bluesky_sections}
               {reddit_sections}
               {transparency}
             </div>
@@ -1772,6 +2070,7 @@ class Scraper:
         write_df.to_csv(articles / f"{stub}.csv", index=False)
     
         summary["news_sections_html"] = self._build_news_sections_html(df)
+        summary["bluesky_sections_html"] = self._build_bluesky_sections_html(df)
         summary["reddit_sections_html"] = self._build_reddit_sections_html(df)
     
         (reports / f"{stub}.html").write_text(
@@ -1850,6 +2149,7 @@ class Scraper:
         prediction_block = self._build_prediction_block(df24, cycle="24h", window_end=window_end)
         summary24["prediction_block"] = prediction_block
         summary24["news_sections_html"] = self._build_news_sections_html(df24)
+        summary24["bluesky_sections_html"] = self._build_bluesky_sections_html(df24)
         summary24["reddit_sections_html"] = self._build_reddit_sections_html(df24)
         transparency_rows = (
             df24[["title", "source_type", "final_sentiment_label", "market_sentiment_label", "sensitivity_analysis_score", "sentiment_model_used", "sentiment_model_note"]]
@@ -1943,7 +2243,7 @@ class Scraper:
 
 
 def default_sources() -> List[FeedSource]:
-    return [FeedSource(**cfg) for cfg in SOURCE_FEEDS + REDDIT_SOURCES]
+    return [FeedSource(**cfg) for cfg in SOURCE_FEEDS + REDDIT_SOURCES + BLUESKY_SOURCES]
 
 
 def load_sources_from_file(path: Optional[str], logger: Optional[logging.Logger] = None) -> List[FeedSource]:
@@ -1962,7 +2262,7 @@ def load_sources_from_file(path: Optional[str], logger: Optional[logging.Logger]
         for row in payload:
             if not isinstance(row, dict):
                 continue
-            if row.get("source_type") not in {"news", "reddit"}:
+            if row.get("source_type") not in {"news", "reddit", "bluesky"}:
                 continue
             if not row.get("feed_url", "").startswith(("http://", "https://")):
                 continue
